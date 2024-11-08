@@ -174,7 +174,7 @@ POLESTAR_SENSOR_TYPES: Final[tuple[PolestarSensorDescription, ...]] = (
         native_unit_of_measurement=UnitOfTime.MINUTES,
         round_digits=None,
         state_class=SensorStateClass.MEASUREMENT,
-        device_class=SensorDeviceClass.TIMESTAMP,
+        device_class=SensorDeviceClass.DURATION,
         max_value=None,
         dict_data=None,
     ),
@@ -623,7 +623,7 @@ class PolestarSensor(PolestarEntity, SensorEntity):
             "estimated_charge_rate",
             "estimated_fully_charged_time",
         ):
-            if self._device.get_latest_data(
+            if self.car.get_latest_data(
                 self.entity_description.query, "chargingStatus"
             ) not in ("CHARGING_STATUS_CHARGING", "CHARGING_STATUS_SMART_CHARGING"):
                 return None
@@ -635,14 +635,14 @@ class PolestarSensor(PolestarEntity, SensorEntity):
                 return datetime.now().replace(second=0, microsecond=0) + timedelta(
                     minutes=round(value)
                 )
-            return "Not charging"
+            return None
 
         # Custom state for estimated_charge_rate
         if self.entity_description.key == "estimated_charge_rate":
-            avg_energy_consumption = self._device.get_latest_data(
+            avg_energy_consumption = self.car.get_latest_data(
                 self.entity_description.query, "averageEnergyConsumptionKwhPer100Km"
             )
-            charging_power = self._device.get_latest_data(
+            charging_power = self.car.get_latest_data(
                 self.entity_description.query, "chargingPowerWatts"
             )
 
