@@ -623,9 +623,10 @@ class PolestarSensor(PolestarEntity, SensorEntity):
             "estimated_charge_rate",
             "estimated_fully_charged_time",
         ):
-            if self.car.get_latest_data(
+            charging_status = self.car.get_latest_data(
                 self.entity_description.query, "chargingStatus"
-            ) not in ("CHARGING_STATUS_CHARGING", "CHARGING_STATUS_SMART_CHARGING"):
+            )
+            if charging_status not in ("CHARGING_STATUS_CHARGING", "CHARGING_STATUS_SMART_CHARGING"):
                 return None
 
         # Custom state for estimated_fully_charged_time
