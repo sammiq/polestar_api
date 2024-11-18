@@ -101,20 +101,6 @@ POLESTAR_SENSOR_TYPES: Final[tuple[PolestarSensorDescription, ...]] = (
         max_value=660,
         dict_data=None,
     ),
-    # deprecated
-    #    PolestarSensorDescription(
-    #        key="estimate_distance_to_empty_miles",
-    #        name="Distance Miles Remaining",
-    #        icon="mdi:map-marker-distance",
-    #        query="getBatteryData",
-    #        field_name="estimatedDistanceToEmptyMiles",
-    #        native_unit_of_measurement=UnitOfLength.MILES,
-    #        round_digits=None,
-    #        state_class=SensorStateClass.MEASUREMENT,
-    #        device_class=SensorDeviceClass.DISTANCE,
-    #        max_value=410,
-    #        dict_data=None,
-    #    ),
     PolestarSensorDescription(
         key="current_odometer",
         name="Odometer",
@@ -186,7 +172,9 @@ POLESTAR_SENSOR_TYPES: Final[tuple[PolestarSensorDescription, ...]] = (
         query="getBatteryData",
         field_name="estimatedChargingTimeToFullMinutes",
         native_unit_of_measurement=UnitOfTime.MINUTES,
+        state_class=SensorStateClass.MEASUREMENT,
         round_digits=None,
+        state_class=SensorStateClass.MEASUREMENT,
         max_value=None,
         dict_data=None,
     ),
@@ -308,6 +296,8 @@ POLESTAR_SENSOR_TYPES: Final[tuple[PolestarSensorDescription, ...]] = (
         field_name="registrationDate",
         native_unit_of_measurement=None,
         round_digits=None,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.DATE,
         max_value=None,
         dict_data=None,
         entity_registry_enabled_default=False,
@@ -331,6 +321,8 @@ POLESTAR_SENSOR_TYPES: Final[tuple[PolestarSensorDescription, ...]] = (
         field_name="factoryCompleteDate",
         native_unit_of_measurement=None,
         round_digits=None,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.DATE,
         max_value=None,
         dict_data=None,
         entity_registry_enabled_default=False,
@@ -355,7 +347,7 @@ POLESTAR_SENSOR_TYPES: Final[tuple[PolestarSensorDescription, ...]] = (
         native_unit_of_measurement=None,
         round_digits=None,
         state_class=SensorStateClass.MEASUREMENT,
-        device_class=SensorDeviceClass.DURATION,
+        device_class=SensorDeviceClass.TIMESTAMP,
         max_value=None,
         dict_data=None,
     ),
@@ -411,6 +403,19 @@ POLESTAR_SENSOR_TYPES: Final[tuple[PolestarSensorDescription, ...]] = (
         max_value=660,  # WLTP range max 655
         dict_data=None,
     ),
+    PolestarSensorDescription(
+        key="estimated_charge_rate",
+        name="Estimated Charge Rate",
+        icon="mdi:speedometer",
+        query="getBatteryData",
+        field_name="chargingPowerWatts",
+        native_unit_of_measurement=UnitOfSpeed.KILOMETERS_PER_HOUR,
+        round_digits=2,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.SPEED,
+        max_value=None,
+        dict_data=None,
+     ),
     PolestarSensorDescription(
         key="api_status_code_data",
         name="API Status Code (Data)",
@@ -611,6 +616,18 @@ class PolestarSensor(PolestarEntity, SensorEntity):
             self._sensor_data = round(estimate_range / battery_level * 100)
             self._attr_native_value = self._sensor_data
 
+        # dont return a value for charging stats when not charging
+        if self.entity_description.key in (
+            "charging_current",
+            "charging_power",
+            "estimated_charge_rate",
+            "estimated_fully_charged_time",
+        ):
+            if self._device.get_latest_data(
+                self.entity_description.query, "chargingStatus"
+            ) not in ("CHARGING_STATUS_CHARGING", "CHARGING_STATUS_SMART_CHARGING"):
+                return None
+
         # Custom state for estimated_fully_charged_time
         if self.entity_description.key == "estimated_fully_charged_time":
             value = int(self._attr_native_value)
@@ -619,6 +636,32 @@ class PolestarSensor(PolestarEntity, SensorEntity):
                     minutes=round(value)
                 )
             return "Not charging"
+
+        # Custom state for estimated_charge_rate
+        if self.entity_description.key == "estimated_charge_rate":
+            avg_energy_consumption = self._device.get_latest_data(
+                self.entity_description.query, "averageEnergyConsumptionKwhPer100Km"
+            )
+            charging_power = self._device.get_latest_data(
+                self.entity_description.query, "chargingPowerWatts"
+            )
+
+            if avg_energy_consumption is None or charging_power is None:
+                return None
+
+            if avg_energy_consumption is False or charging_power is False:
+                return None
+
+            charging_power = float(charging_power)
+            avg_energy_consumption = float(avg_energy_consumption)
+
+            if avg_energy_consumption > 0:
+                self._sensor_data = (charging_power / 1000.0) / (
+                    avg_energy_consumption / 100.0
+                )
+                self._attr_native_value = self._sensor_data
+            else:
+                return None
 
         if self.entity_description.key == "battery_capacity":
             # remove the kWh from the value
