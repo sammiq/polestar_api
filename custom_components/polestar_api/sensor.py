@@ -623,7 +623,7 @@ class PolestarSensor(PolestarEntity, SensorEntity):
             "estimated_charge_rate",
             "estimated_fully_charged_time",
         ):
-            charging_status = self.car.get_latest_data(
+            charging_status = self.car.get_value(
                 self.entity_description.query, "chargingStatus"
             )
             if charging_status not in ("CHARGING_STATUS_CHARGING", "CHARGING_STATUS_SMART_CHARGING"):
@@ -640,10 +640,10 @@ class PolestarSensor(PolestarEntity, SensorEntity):
 
         # Custom state for estimated_charge_rate
         if self.entity_description.key == "estimated_charge_rate":
-            avg_energy_consumption = self.car.get_latest_data(
+            avg_energy_consumption = self.car.get_value(
                 self.entity_description.query, "averageEnergyConsumptionKwhPer100Km"
             )
-            charging_power = self.car.get_latest_data(
+            charging_power = self.car.get_value(
                 self.entity_description.query, "chargingPowerWatts"
             )
 
