@@ -90,9 +90,13 @@ class PolestarCar:
 
         if data := self.polestar_api.get_car_battery(self.vin):
             is_charging = data.charging_status in (ChargingStatus.CHARGING_STATUS_CHARGING, ChargingStatus.CHARGING_STATUS_SMART_CHARGING)
-            if not is_charging:
-                data.charging_power_watts = 0
-                data.charging_current_amps = 0
+            if is_charging:
+                charging_power_watts = data.charging_power_watts
+                charging_current_amps = data.charging_current_amps
+            else:
+                charging_power_watts = 0
+                charging_current_amps = 0
+            
 
             if (
                 data.battery_charge_level_percentage is not None
@@ -123,11 +127,11 @@ class PolestarCar:
 
             if (
                 is_charging
-                and data.charging_power_watts != 0
+                and charging_power_watts != 0
                 and data.average_energy_consumption_kwh_per_100km is not None
                 and data.average_energy_consumption_kwh_per_100km > 0
             ):
-                charging_power = float(data.charging_power_watts)
+                charging_power = float(charging_power_watts)
                 avg_energy_consumption = float(data.average_energy_consumption_kwh_per_100km)
                 estimated_charge_rate = (charging_power / 1000.0) / (avg_energy_consumption / 100.0)
             else:
@@ -139,8 +143,8 @@ class PolestarCar:
                     "battery_charge_level": data.battery_charge_level_percentage,
                     "charging_status": data.charging_status,
                     "charger_connection_status": data.charger_connection_status,
-                    "charging_power": data.charging_power_watts,
-                    "charging_current": data.charging_current_amps,
+                    "charging_power": charging_power_watts,
+                    "charging_current": charging_current_amps,
                     "average_energy_consumption_kwh_per_100": data.average_energy_consumption_kwh_per_100km,
                     "estimate_range": data.estimated_distance_to_empty_km,
                     "estimate_full_charge_range": estimate_full_charge_range,
