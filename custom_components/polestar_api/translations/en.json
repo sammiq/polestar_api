@@ -71,6 +71,9 @@
       "polestar_estimated_fully_charged_time": {
         "name": "Estimated Fully Charged Time"
       },
+      "polestar_estimated_charge_rate": {
+        "name": "Estimated Charge Rate"
+      },
       "polestar_model_name": {
         "name": "Model Name"
       },

@@ -134,6 +134,8 @@ POLESTAR_SENSOR_TYPES: Final[tuple[PolestarSensorDescription, ...]] = (
         icon="mdi:battery-clock",
         native_unit_of_measurement=UnitOfTime.MINUTES,
         round_digits=None,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.DURATION,
         max_value=None,
     ),
     PolestarSensorDescription(
@@ -246,7 +248,7 @@ POLESTAR_SENSOR_TYPES: Final[tuple[PolestarSensorDescription, ...]] = (
         native_unit_of_measurement=None,
         round_digits=None,
         state_class=SensorStateClass.MEASUREMENT,
-        device_class=SensorDeviceClass.DURATION,
+        device_class=SensorDeviceClass.TIMESTAMP,
         max_value=None,
     ),
     PolestarSensorDescription(
@@ -289,6 +291,16 @@ POLESTAR_SENSOR_TYPES: Final[tuple[PolestarSensorDescription, ...]] = (
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.DISTANCE,
         max_value=660,  # WLTP range max 655
+    ),
+    PolestarSensorDescription(
+        key="estimated_charge_rate",
+        name="Calc. Charge Rate",
+        icon="mdi:speedometer",
+        native_unit_of_measurement=UnitOfLength.KILOMETERS_PER_HOUR,
+        round_digits=None,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.SPEED,
+        max_value=None,
     ),
     PolestarSensorDescription(
         key="api_status_code_data",

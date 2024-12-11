@@ -13,6 +13,7 @@ from homeassistant.util import Throttle
 
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN as POLESTAR_API_DOMAIN
 from .pypolestar.exception import PolestarApiException, PolestarAuthException
+from .pypolestar.models import ChargingStatus
 from .pypolestar.polestar import PolestarApi
 
 _LOGGER = logging.getLogger(__name__)
@@ -88,6 +89,11 @@ class PolestarCar:
         """Update data with current car battery readings"""
 
         if data := self.polestar_api.get_car_battery(self.vin):
+            is_charging = data.charging_status in (ChargingStatus.CHARGING_STATUS_CHARGING, ChargingStatus.CHARGING_STATUS_SMART_CHARGING)
+            if not is_charging:
+                data.charging_power_watts = 0
+                data.charging_current_amps = 0
+
             if (
                 data.battery_charge_level_percentage is not None
                 and data.battery_charge_level_percentage != 0
@@ -102,7 +108,10 @@ class PolestarCar:
             else:
                 estimate_full_charge_range = None
 
-            if data.estimated_charging_time_to_full_minutes:
+            if (
+                is_charging
+                and data.estimated_charging_time_to_full_minutes is not None
+            ):
                 timestamp = datetime.now().replace(second=0, microsecond=0) + timedelta(
                     minutes=data.estimated_charging_time_to_full_minutes
                 )
@@ -110,7 +119,20 @@ class PolestarCar:
                     "%Y-%m-%d %H:%M:%S"
                 )
             else:
-                estimated_fully_charged_time = "Not charging"
+                estimated_fully_charged_time = None
+
+            if (
+                is_charging
+                and data.charging_power_watts != 0
+                and data.average_energy_consumption_kwh_per_100km is not None
+                and data.average_energy_consumption_kwh_per_100km > 0
+            ):
+                charging_power = float(data.charging_power_watts)
+                avg_energy_consumption = float(data.average_energy_consumption_kwh_per_100km)
+                estimated_charge_rate = (charging_power / 1000.0) / (avg_energy_consumption / 100.0)
+            else:
+                estimated_charge_rate = None
+
 
             self.data.update(
                 {
@@ -125,6 +147,7 @@ class PolestarCar:
                     "estimated_charging_time_minutes_to_target_distance": data.estimated_charging_time_minutes_to_target_distance,
                     "estimated_charging_time_to_full": data.estimated_charging_time_to_full_minutes,
                     "estimated_fully_charged_time": estimated_fully_charged_time,
+                    "estimated_charge_rate": estimated_charge_rate,
                     "last_updated_battery_data": data.event_updated_timestamp,
                 }
             )
